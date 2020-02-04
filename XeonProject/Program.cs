@@ -1,27 +1,22 @@
 ﻿using System;
-using System.Threading.Tasks;
 using System.Threading;
 using XeonCore.Sandbox;
 using XeonCore.Network;
 using XeonCore.Network.Websocket;
 using XeonStorage;
 using XeonCore.Events;
-using System.Text;
-using Newtonsoft.Json.Linq;
 using XeonCore;
 using System.Collections.Generic;
 
 namespace XeonProject
 {
-    class Program
+    static class Program
     {
+        public static Cache cache = new Cache();
+        public static LuaSandbox sandbox = new LuaSandbox();
+        public static NetManager<WClient> Manager = new NetManager<WClient>();
         static void Main(string[] args)
         {
-            // Globals
-            Cache cache = new Cache();
-            LuaSandbox sandbox = new LuaSandbox();
-            NetManager<WClient> Manager = new NetManager<WClient>();
-
             EventLoop eventLoop = new EventLoop(new KeyValuePair<string, object>("Manager", Manager), new KeyValuePair<string, object>("cache", cache), new KeyValuePair<string, object>("sandbox", sandbox));
             eventLoop.Globals["eventLoop"] = eventLoop;
 
@@ -121,26 +116,29 @@ namespace XeonProject
 
         static void TestCache()
         {
-            Cache cache = new Cache();
-            object t = new Actor();
+            Actor t = new Actor();
             Guid tg = Guid.NewGuid();
             cache.TryAdd(tg, t);
             Thread CacheTest = new Thread(() =>
             {
-                CacheObject obj = cache.TryGetObject(tg);
-                Actor act = (Actor)obj.Lock();
-                act.Location.X += 5;
-                Console.WriteLine($"Thread 1 Object:\n{act}");
-                obj.Release();
+                if (cache.TryGetObject(tg, out CacheObject obj))
+                {
+                    Actor act = obj.Lock<Actor>();
+                    act.Location.X += 5;
+                    Console.WriteLine($"Thread 1 Object:\n{act}");
+                    obj.Release();
+                }
             });
             Thread CacheTest2 = new Thread(() =>
             {
-                CacheObject obj = cache.TryGetObject(tg);
-                Actor act = (Actor)obj.Lock();
-                act.Location.X += 100;
-                act.Location.Y += 2;
-                Console.WriteLine($"Thread 2 Object:\n{act}");
-                obj.Release();
+                if (cache.TryGetObject(tg, out CacheObject obj))
+                {
+                    Actor act = obj.Lock<Actor>();
+                    act.Location.X += 100;
+                    act.Location.Y += 2;
+                    Console.WriteLine($"Thread 2 Object:\n{act}");
+                    obj.Release();
+                }
             });
             CacheTest.Start();
             CacheTest2.Start();

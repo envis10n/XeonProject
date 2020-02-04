@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
-using Newtonsoft.Json;
 
 namespace XeonStorage
 {
@@ -31,14 +30,23 @@ namespace XeonStorage
         {
             Value = value;
         }
-        public ref object Lock()
+        public object Lock()
         {
             Mut.WaitOne();
-            return ref Value;
+            return Value;
+        }
+        public T Lock<T>()
+        {
+            Mut.WaitOne();
+            return (T)Value;
         }
         public void Release()
         {
             Mut.ReleaseMutex();
+        }
+        public bool IsType<C>()
+        {
+            return Value is C;
         }
     }
     public class Cache
@@ -53,18 +61,19 @@ namespace XeonStorage
         {
             return _map.ContainsValue(item);
         }
-        public CacheObject TryGetObject(Guid key)
+        public bool TryGetObject(Guid key, out CacheObject item)
         {
             if (ContainsKey(key))
             {
                 _mutex.WaitOne();
-                CacheObject item = _map.GetValueOrDefault(key);
+                item = _map.GetValueOrDefault(key);
                 _mutex.ReleaseMutex();
-                return item;
+                return true;
             }
             else
             {
-                return null;
+                item = null;
+                return false;
             }
         }
         public CacheObject GetObject(Guid key)

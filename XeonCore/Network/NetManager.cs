@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-
-namespace XeonCore.Network
+﻿namespace XeonCore.Network
 {
     public interface INetManaged<T> where T : IClient
     {

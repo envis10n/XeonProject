@@ -1,5 +1,4 @@
-﻿using System;
-using XeonCore.Vector;
+﻿using XeonCore.Vector;
 using Newtonsoft.Json;
 
 namespace XeonCore
