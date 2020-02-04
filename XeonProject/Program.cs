@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Threading;
 using XeonCore.Sandbox;
 using XeonCore.Network;
@@ -7,12 +8,14 @@ using XeonStorage;
 using XeonCore.Events;
 using XeonCore;
 using System.Collections.Generic;
+using System.IO;
 
 namespace XeonProject
 {
     static class Program
     {
-        public static Cache cache = new Cache();
+        public static string AppDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.ToString();
+        public static Cache cache = new Cache(1000 * 60, AppDir, "WorldCache.json");
         public static LuaSandbox sandbox = new LuaSandbox();
         public static NetManager<WClient> Manager = new NetManager<WClient>();
         static void Main(string[] args)

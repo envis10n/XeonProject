@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace XeonStorage
@@ -53,6 +54,42 @@ namespace XeonStorage
     {
         private Dictionary<Guid, CacheObject> _map = new Dictionary<Guid, CacheObject>();
         private Mutex _mutex = new Mutex();
+        public string Path { get; }
+        public int Interval { get; }
+        private Timer _saveTimer;
+        public Timer SaveTimer { get => _saveTimer; }
+        public Cache(int saveInterval, params string[] pathSegments)
+        {
+            Interval = saveInterval;
+            Path = System.IO.Path.Join(pathSegments);
+            Load().Wait();
+            _saveTimer = new Timer(async (Object stateInfo) =>
+            {
+                await Save();
+            }, null, Interval, Interval);
+        }
+        public async Task Save()
+        {
+            CacheSnapshot snapshot = TakeSnapshot();
+            await IO.WriteFile(snapshot.GetBytes(), Path);
+            Console.WriteLine($"[{snapshot.Timestamp}] World cache saved.");
+        }
+        private async Task Load()
+        {
+            Console.WriteLine("Cache loading from disk...");
+            try
+            {
+                byte[] data = await IO.ReadFile(Path);
+                LoadSnapshot(data);
+                Console.WriteLine($"Cache loaded from snapshot. Bytes: {data.Length}");
+            }
+            catch (System.IO.FileNotFoundException)
+            {
+                Console.WriteLine("Cache file not found. Writing new file...");
+                await IO.WriteFile(TakeSnapshot().GetBytes(), Path);
+            }
+            Console.WriteLine("Done.");
+        }
         public bool ContainsKey(Guid key)
         {
             return _map.ContainsKey(key);
