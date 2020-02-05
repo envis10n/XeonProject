@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\XeonCore\XeonCore.csproj" />
+    <ProjectReference Include="..\XeonCommon\XeonCommon.csproj" />
   </ItemGroup>
 
 </Project>

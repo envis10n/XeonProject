@@ -1,13 +1,9 @@
 ﻿using System.Collections.Generic;
 
-namespace XeonCore
+namespace XeonCore.Game
 {
-    public class Container<T> : Entity where T : Entity
+    public abstract class Container<T> : Entity where T : Entity
     {
-        public List<T> Storage;
-        public Container()
-        {
-            Storage = new List<T>();
-        }
+        public List<T> Storage = new List<T>();
     }
 }

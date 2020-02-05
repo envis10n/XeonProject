@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using XeonCommon.Storage;
 
 namespace XeonStorage
 {
@@ -21,31 +22,31 @@ namespace XeonStorage
         }
     }
     [JsonObject(MemberSerialization.OptIn)]
-    public class CacheObject
+    public class CacheObject : StorageObject
     {
         [JsonProperty]
-        private object Value;
-        private Mutex Mut = new Mutex();
+        private readonly object Value;
+        private readonly Mutex Mut = new Mutex();
 
         public CacheObject(object value)
         {
             Value = value;
         }
-        public object Lock()
+        public override object Lock()
         {
             Mut.WaitOne();
             return Value;
         }
-        public T Lock<T>()
+        public override T Lock<T>()
         {
             Mut.WaitOne();
             return (T)Value;
         }
-        public void Release()
+        public override void Release()
         {
             Mut.ReleaseMutex();
         }
-        public bool IsType<C>()
+        public override bool IsType<C>()
         {
             return Value is C;
         }

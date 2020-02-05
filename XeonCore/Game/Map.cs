@@ -1,9 +1,10 @@
 ﻿using System.Collections.Generic;
+using System;
 
-namespace XeonCore
+namespace XeonCore.Game
 {
-    public class Map
+    public abstract class Map
     {
-        public List<Zone> Zones;
+        public List<Zone> Zones = new List<Zone>();
     }
 }
