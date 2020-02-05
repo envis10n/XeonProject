@@ -113,6 +113,22 @@ namespace XeonStorage
                 return false;
             }
         }
+        public bool Remove(Guid key)
+        {
+            if (TryGetObject(key, out CacheObject item))
+            {
+                object obj = item.Lock();
+                _map.Remove(key);
+                item.Release();
+                item = null;
+                obj = null;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
         public CacheObject GetObject(Guid key)
         {
             if (ContainsKey(key))

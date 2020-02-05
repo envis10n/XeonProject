@@ -18,7 +18,7 @@ namespace XeonStorage
         public static async Task WriteFile(byte[] data, params string[] pathSegments)
         {
             string path = Path.Join(pathSegments);
-            using (FileStream sr = File.OpenWrite(path))
+            using (FileStream sr = File.Create(path))
             {
                 await sr.WriteAsync(data, 0, data.Length);
             }

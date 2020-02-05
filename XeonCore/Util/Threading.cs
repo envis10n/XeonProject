@@ -24,25 +24,4 @@ namespace XeonCore
             }
         }
     }
-    namespace Concurrency
-    {
-        public class Mut<T>
-        {
-            protected T _value;
-            protected Mutex _mutex = new Mutex();
-            public Mut(T value)
-            {
-                _value = value;
-            }
-            public ref T Lock()
-            {
-                _mutex.WaitOne();
-                return ref _value;
-            }
-            public void Release()
-            {
-                _mutex.ReleaseMutex();
-            }
-        }
-    }
 }

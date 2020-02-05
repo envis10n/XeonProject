@@ -30,6 +30,22 @@ namespace XeonCore
                 end
                 return run")[0] as LuaFunction;
             }
+            public void UpdateSandboxEnv(string source)
+            {
+                Runner = State.DoString(@"
+                import = function () end -- Block import
+                " + $"local env = {source}" + @"
+                local function run(untrusted_code)
+                    local untrusted_function, message = load(untrusted_code, nil, 't', env)
+                    if not untrusted_function then return nil, message end
+                    return pcall(untrusted_function)
+                end
+                return run")[0] as LuaFunction;
+            }
+            public void RegisterFunction(string path, Delegate func)
+            {
+                State[path] = func;
+            }
             public LuaSandbox(KeraLua.Lua state)
             {
                 State = new Lua(state);

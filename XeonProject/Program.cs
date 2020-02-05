@@ -1,72 +1,29 @@
 ﻿using System;
 using System.Reflection;
 using System.Threading;
-using XeonCore.Sandbox;
+using System.IO;
 using XeonCore.Network;
 using XeonCore.Network.Websocket;
-using XeonStorage;
-using XeonCore.Events;
-using XeonCore;
-using System.Collections.Generic;
-using System.IO;
+using XeonCore.Sandbox;
 
 namespace XeonProject
 {
     static class Program
     {
         public static string AppDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.ToString();
-        public static Cache cache = new Cache(1000 * 60, AppDir, "WorldCache.json");
-        public static LuaSandbox sandbox = new LuaSandbox();
-        public static NetManager<WClient> Manager = new NetManager<WClient>();
         static void Main(string[] args)
         {
-            EventLoop eventLoop = new EventLoop(new KeyValuePair<string, object>("Manager", Manager), new KeyValuePair<string, object>("cache", cache), new KeyValuePair<string, object>("sandbox", sandbox));
-            eventLoop.Globals["eventLoop"] = eventLoop;
 
-            Thread NetworkThread = new Thread(() =>
-            {
-                WServer server = new WServer("127.0.0.1", 1337);
-                server.Connect += (WClient client) =>
-                {
-                    Console.WriteLine($"Client connected: {client.Ip}");
-                    client.MessageReceived += (string data) =>
-                    {
-                        NetEvent<WClient> e = new NetEvent<WClient>();
-                        e.Client = client;
-                        e.Payload = data;
-                        Manager.Queue.CallNetEvent(e);
-                    };
-                };
-
-                server.Disconnect += (WClient client) =>
-                {
-                    using (client)
-                    {
-                        Console.WriteLine($"Client disconnected: {client.Ip}");
-                    }
-                };
-            });
-            Thread NetQueueWatcher = new Thread(() =>
-            {
-                while (true)
-                {
-                    bool success = Manager.Queue.Poll(out NetEvent<WClient> e);
-                    if (success)
-                    {
-                        Manager.EmitNetEvent(e);
-                    }
-                }
-            });
             Thread GameThread = new Thread(() =>
             {
-                Manager.NetEventIn += (NetEvent<WClient> e) =>
+                Network.Manager.NetEventIn += (NetEvent<WClient> e) =>
                 {
-                    eventLoop.Enqueue(async () =>
+                    Events.EventLoop.Enqueue(async () =>
                     {
                         Console.WriteLine($"Network event received from {e.Client.Ip}: {e.Payload}");
                         try
                         {
-                            object[] result = await sandbox.Exec(e.Payload, 5000);
+                            object[] result = await Sandbox.Lua.Exec(e.Payload, 5000);
                             if (result[0] == null)
                             {
                                 // Lua syntax error
@@ -110,43 +67,10 @@ namespace XeonProject
                     });
                 };
             });
-            NetworkThread.Start();
-            NetQueueWatcher.Start();
+            Network.Start();
             GameThread.Start();
-            eventLoop.Start();
-            eventLoop.Join();
-        }
-
-        static void TestCache()
-        {
-            Actor t = new Actor();
-            Guid tg = Guid.NewGuid();
-            cache.TryAdd(tg, t);
-            Thread CacheTest = new Thread(() =>
-            {
-                if (cache.TryGetObject(tg, out CacheObject obj))
-                {
-                    Actor act = obj.Lock<Actor>();
-                    act.Location.X += 5;
-                    Console.WriteLine($"Thread 1 Object:\n{act}");
-                    obj.Release();
-                }
-            });
-            Thread CacheTest2 = new Thread(() =>
-            {
-                if (cache.TryGetObject(tg, out CacheObject obj))
-                {
-                    Actor act = obj.Lock<Actor>();
-                    act.Location.X += 100;
-                    act.Location.Y += 2;
-                    Console.WriteLine($"Thread 2 Object:\n{act}");
-                    obj.Release();
-                }
-            });
-            CacheTest.Start();
-            CacheTest2.Start();
-            while (CacheTest.IsAlive || CacheTest2.IsAlive) { }
-            Console.WriteLine($"Snapshot:\n{cache.TakeSnapshot().GetString()}");
+            Events.EventLoop.Start();
+            Events.EventLoop.Join();
         }
     }
 }
