@@ -5,9 +5,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using XeonCommon.Storage;
+using XeonCommon;
 
 namespace XeonStorage
 {
+    public static class Defaults
+    {
+        public static JsonSerializerSettings SerializerSettings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto, ReferenceLoopHandling = ReferenceLoopHandling.Ignore, PreserveReferencesHandling = PreserveReferencesHandling.All };
+    }
     public class CacheSnapshot
     {
         public Dictionary<Guid, CacheObject> Map;
@@ -18,7 +23,7 @@ namespace XeonStorage
         }
         public string GetString()
         {
-            return JsonConvert.SerializeObject(this, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto, ReferenceLoopHandling = ReferenceLoopHandling.Ignore, PreserveReferencesHandling = PreserveReferencesHandling.All });
+            return JsonConvert.SerializeObject(this, Defaults.SerializerSettings);
         }
     }
     [JsonObject(MemberSerialization.OptIn)]
@@ -53,6 +58,7 @@ namespace XeonStorage
     }
     public class Cache
     {
+        public static Logger Log = new Logger("[Cache]");
         private Dictionary<Guid, CacheObject> _map = new Dictionary<Guid, CacheObject>();
         private Mutex _mutex = new Mutex();
         public string Path { get; }
@@ -73,23 +79,23 @@ namespace XeonStorage
         {
             CacheSnapshot snapshot = TakeSnapshot();
             await IO.WriteFile(snapshot.GetBytes(), Path);
-            Console.WriteLine($"[{snapshot.Timestamp}] World cache saved.");
+            Log.WriteLine($"[{snapshot.Timestamp}] World cache saved.");
         }
         private async Task Load()
         {
-            Console.WriteLine("Cache loading from disk...");
+            Log.WriteLine("Cache loading from disk...");
             try
             {
                 byte[] data = await IO.ReadFile(Path);
                 LoadSnapshot(data);
-                Console.WriteLine($"Cache loaded from snapshot. Bytes: {data.Length}");
+                Log.WriteLine($"Cache loaded from snapshot. Bytes: {data.Length}");
             }
             catch (System.IO.FileNotFoundException)
             {
-                Console.WriteLine("Cache file not found. Writing new file...");
+                Log.WriteLine("Cache file not found. Writing new file...");
                 await IO.WriteFile(TakeSnapshot().GetBytes(), Path);
             }
-            Console.WriteLine("Done.");
+            Log.WriteLine("Done.");
         }
         public bool ContainsKey(Guid key)
         {
@@ -164,7 +170,7 @@ namespace XeonStorage
         {
             _mutex.WaitOne();
             CacheSnapshot snapshot = new CacheSnapshot();
-            snapshot.Map = _map;
+            snapshot.Map = JsonConvert.DeserializeObject<Dictionary<Guid, CacheObject>>(JsonConvert.SerializeObject(_map, Defaults.SerializerSettings));
             snapshot.Timestamp = DateTime.Now;
             _mutex.ReleaseMutex();
             return snapshot;
@@ -173,7 +179,7 @@ namespace XeonStorage
         {
             _mutex.WaitOne();
             _map.Clear();
-            CacheSnapshot snapshot = JsonConvert.DeserializeObject<CacheSnapshot>(Encoding.UTF8.GetString(data), new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto, ReferenceLoopHandling = ReferenceLoopHandling.Ignore, PreserveReferencesHandling = PreserveReferencesHandling.All });
+            CacheSnapshot snapshot = JsonConvert.DeserializeObject<CacheSnapshot>(Encoding.UTF8.GetString(data), Defaults.SerializerSettings);
             _map = snapshot.Map;
             _mutex.ReleaseMutex();
         }
@@ -181,7 +187,7 @@ namespace XeonStorage
         {
             _mutex.WaitOne();
             _map.Clear();
-            CacheSnapshot snapshot = JsonConvert.DeserializeObject<CacheSnapshot>(json, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto, ReferenceLoopHandling = ReferenceLoopHandling.Ignore, PreserveReferencesHandling = PreserveReferencesHandling.All });
+            CacheSnapshot snapshot = JsonConvert.DeserializeObject<CacheSnapshot>(json, Defaults.SerializerSettings);
             _map = snapshot.Map;
             _mutex.ReleaseMutex();
         }

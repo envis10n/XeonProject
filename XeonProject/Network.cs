@@ -16,9 +16,7 @@ namespace XeonProject
                     Console.WriteLine($"Client connected: {client.Ip}");
                     client.MessageReceived += (string data) =>
                     {
-                        NetEvent<WClient> e = new NetEvent<WClient>();
-                        e.Client = client;
-                        e.Payload = data;
+                        NetEvent<WClient> e = new NetEvent<WClient> { Client = client, Payload = data };
                         Manager.Queue.CallNetEvent(e);
                     };
                 };
@@ -35,10 +33,13 @@ namespace XeonProject
             {
                 while (true)
                 {
-                    bool success = Manager.Queue.Poll(out NetEvent<WClient> e);
+                    bool success = Manager.Queue.Poll(out NetEvent<WClient>[] events);
                     if (success)
                     {
-                        Manager.EmitNetEvent(e);
+                        foreach (NetEvent<WClient> e in events)
+                        {
+                            Manager.EmitNetEvent(e);
+                        }
                     }
                 }
             });

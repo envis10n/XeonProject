@@ -1,4 +1,6 @@
-﻿namespace XeonCore.Network
+﻿using XeonCommon.Network;
+
+namespace XeonCore.Network
 {
     public interface INetManaged<T> where T : IClient
     {

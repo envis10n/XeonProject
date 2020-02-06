@@ -1,7 +1,7 @@
-﻿using System;
 using System.Threading.Tasks;
+using System;
 
-namespace XeonCore.Network
+namespace XeonCommon.Network
 {
     public interface IClient : IDisposable
     {

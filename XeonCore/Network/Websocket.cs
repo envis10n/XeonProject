@@ -4,6 +4,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using WatsonWebsocket;
+using XeonCommon.Network;
 
 namespace XeonCore.Network.Websocket
 {
