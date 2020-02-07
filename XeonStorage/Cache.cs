@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using XeonCommon.Storage;
 using XeonCommon;
+using System.Reflection;
+using System.IO;
 
 namespace XeonStorage
 {
@@ -58,7 +60,8 @@ namespace XeonStorage
     }
     public class Cache
     {
-        public static Logger Log = new Logger("[Cache]");
+        private static string AppDir = Environment.CurrentDirectory;
+        private static Logger Log = new Logger("[Cache]");
         private Dictionary<Guid, CacheObject> _map = new Dictionary<Guid, CacheObject>();
         private Mutex _mutex = new Mutex();
         public string Path { get; }
@@ -68,7 +71,7 @@ namespace XeonStorage
         public Cache(int saveInterval, params string[] pathSegments)
         {
             Interval = saveInterval;
-            Path = System.IO.Path.Join(pathSegments);
+            Path = System.IO.Path.Combine(pathSegments);
             Load().Wait();
             _saveTimer = new Timer(async (Object stateInfo) =>
             {
@@ -92,7 +95,7 @@ namespace XeonStorage
             }
             catch (System.IO.FileNotFoundException)
             {
-                Log.WriteLine("Cache file not found. Writing new file...");
+                Log.WriteLine($"Cache file not found. Writing new file at {Path}");
                 await IO.WriteFile(TakeSnapshot().GetBytes(), Path);
             }
             Log.WriteLine("Done.");

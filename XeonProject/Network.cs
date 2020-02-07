@@ -10,7 +10,7 @@ namespace XeonProject
         public static NetManager<WClient> Manager = new NetManager<WClient>();
         public static Thread NetworkThread = new Thread(() =>
             {
-                WServer server = new WServer("127.0.0.1", 1337);
+                WServer server = new WServer(Program.Config.WebSocket.Address, Program.Config.WebSocket.Port);
                 server.Connect += (WClient client) =>
                 {
                     Console.WriteLine($"Client connected: {client.Ip}");
