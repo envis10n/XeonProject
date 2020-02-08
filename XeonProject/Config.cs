@@ -10,14 +10,14 @@ namespace XeonProject
         public string Address;
         public int Port;
     }
-    public struct CacheConfig
+    public struct DataStoreConfig
     {
         public string Path;
     }
     public struct ProgramConfig
     {
         public WebSocketConfig WebSocket;
-        public CacheConfig Cache;
+        public DataStoreConfig DataStore;
     }
     public static class Config
     {
@@ -25,7 +25,7 @@ namespace XeonProject
         public static readonly ProgramConfig Defaults = new ProgramConfig
         {
             WebSocket = new WebSocketConfig { Address = "127.0.0.1", Port = 1337 },
-            Cache = new CacheConfig { Path = "WorldCache.json" }
+            DataStore = new DataStoreConfig { Path = "WorldDataStore.json" }
         };
         public static ProgramConfig LoadConfig(string configPath)
         {

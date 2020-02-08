@@ -27,7 +27,7 @@ namespace XeonProject
             {
                 Config = XeonProject.Config.LoadConfig(Path.GetFullPath("XeonConfig.json", AppDir));
             }
-            Storage.LoadCache();
+            Storage.LoadDataStore();
             Sandbox.Lua.RegisterFunction("_GetFrames", new Func<string>(() =>
             {
                 return Events.EventLoop.GetFrames();

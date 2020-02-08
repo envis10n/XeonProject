@@ -14,9 +14,9 @@ namespace XeonStorage
     {
         public static JsonSerializerSettings SerializerSettings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto, ReferenceLoopHandling = ReferenceLoopHandling.Ignore, PreserveReferencesHandling = PreserveReferencesHandling.All };
     }
-    public class CacheSnapshot
+    public class DataStoreSnapshot
     {
-        public Dictionary<Guid, CacheObject> Map;
+        public Dictionary<Guid, DataStoreObject> Map;
         public DateTime Timestamp;
         public byte[] GetBytes()
         {
@@ -28,13 +28,13 @@ namespace XeonStorage
         }
     }
     [JsonObject(MemberSerialization.OptIn)]
-    public class CacheObject : StorageObject
+    public class DataStoreObject : StorageObject
     {
         [JsonProperty]
         private readonly object Value;
         private readonly Mutex Mut = new Mutex();
 
-        public CacheObject(object value)
+        public DataStoreObject(object value)
         {
             Value = value;
         }
@@ -57,17 +57,17 @@ namespace XeonStorage
             return Value is C;
         }
     }
-    public class Cache
+    public class DataStore
     {
         private static string AppDir = Environment.CurrentDirectory;
-        private static Logger Log = new Logger("[Cache]");
-        private Dictionary<Guid, CacheObject> _map = new Dictionary<Guid, CacheObject>();
+        private static Logger Log = new Logger("[DataStore]");
+        private Dictionary<Guid, DataStoreObject> _map = new Dictionary<Guid, DataStoreObject>();
         private Mutex _mutex = new Mutex();
         public string Path { get; }
         public int Interval { get; }
         private Timer _saveTimer;
         public Timer SaveTimer { get => _saveTimer; }
-        public Cache(int saveInterval, params string[] pathSegments)
+        public DataStore(int saveInterval, params string[] pathSegments)
         {
             Interval = saveInterval;
             Path = System.IO.Path.Combine(pathSegments);
@@ -79,22 +79,22 @@ namespace XeonStorage
         }
         public async Task Save()
         {
-            CacheSnapshot snapshot = TakeSnapshot();
+            DataStoreSnapshot snapshot = TakeSnapshot();
             await File.Async.OverwriteFile(snapshot.GetBytes(), Path);
             Log.WriteLine($"[{snapshot.Timestamp}] World cache saved.");
         }
         private async Task Load()
         {
-            Log.WriteLine("Cache loading from disk...");
+            Log.WriteLine("DataStore loading from disk...");
             try
             {
                 byte[] data = await File.Async.ReadFile(Path);
                 LoadSnapshot(data);
-                Log.WriteLine($"Cache loaded from snapshot. Bytes: {data.Length}");
+                Log.WriteLine($"DataStore loaded from snapshot. Bytes: {data.Length}");
             }
             catch (System.IO.FileNotFoundException)
             {
-                Log.WriteLine($"Cache file not found. Writing new file at {Path}");
+                Log.WriteLine($"DataStore file not found. Writing new file at {Path}");
                 await File.Async.OverwriteFile(TakeSnapshot().GetBytes(), Path);
             }
             Log.WriteLine("Done.");
@@ -103,11 +103,11 @@ namespace XeonStorage
         {
             return _map.ContainsKey(key);
         }
-        public bool ContainsValue(CacheObject item)
+        public bool ContainsValue(DataStoreObject item)
         {
             return _map.ContainsValue(item);
         }
-        public bool TryGetObject(Guid key, out CacheObject item)
+        public bool TryGetObject(Guid key, out DataStoreObject item)
         {
             if (ContainsKey(key))
             {
@@ -124,7 +124,7 @@ namespace XeonStorage
         }
         public bool Remove(Guid key)
         {
-            if (TryGetObject(key, out CacheObject item))
+            if (TryGetObject(key, out DataStoreObject item))
             {
                 object obj = item.Lock();
                 _map.Remove(key);
@@ -138,12 +138,12 @@ namespace XeonStorage
                 return false;
             }
         }
-        public CacheObject GetObject(Guid key)
+        public DataStoreObject GetObject(Guid key)
         {
             if (ContainsKey(key))
             {
                 _mutex.WaitOne();
-                CacheObject item = _map.GetValueOrDefault(key);
+                DataStoreObject item = _map.GetValueOrDefault(key);
                 _mutex.ReleaseMutex();
                 return item;
             }
@@ -157,7 +157,7 @@ namespace XeonStorage
             _mutex.WaitOne();
             if (!ContainsKey(key))
             {
-                CacheObject obj = new CacheObject(item);
+                DataStoreObject obj = new DataStoreObject(item);
                 _map.Add(key, obj);
                 _mutex.ReleaseMutex();
                 return true;
@@ -168,11 +168,11 @@ namespace XeonStorage
                 return false;
             }
         }
-        public CacheSnapshot TakeSnapshot()
+        public DataStoreSnapshot TakeSnapshot()
         {
             _mutex.WaitOne();
-            CacheSnapshot snapshot = new CacheSnapshot();
-            snapshot.Map = JsonConvert.DeserializeObject<Dictionary<Guid, CacheObject>>(JsonConvert.SerializeObject(_map, Defaults.SerializerSettings));
+            DataStoreSnapshot snapshot = new DataStoreSnapshot();
+            snapshot.Map = JsonConvert.DeserializeObject<Dictionary<Guid, DataStoreObject>>(JsonConvert.SerializeObject(_map, Defaults.SerializerSettings));
             snapshot.Timestamp = DateTime.Now;
             _mutex.ReleaseMutex();
             return snapshot;
@@ -181,7 +181,7 @@ namespace XeonStorage
         {
             _mutex.WaitOne();
             _map.Clear();
-            CacheSnapshot snapshot = JsonConvert.DeserializeObject<CacheSnapshot>(Encoding.UTF8.GetString(data), Defaults.SerializerSettings);
+            DataStoreSnapshot snapshot = JsonConvert.DeserializeObject<DataStoreSnapshot>(Encoding.UTF8.GetString(data), Defaults.SerializerSettings);
             _map = snapshot.Map;
             _mutex.ReleaseMutex();
         }
@@ -189,7 +189,7 @@ namespace XeonStorage
         {
             _mutex.WaitOne();
             _map.Clear();
-            CacheSnapshot snapshot = JsonConvert.DeserializeObject<CacheSnapshot>(json, Defaults.SerializerSettings);
+            DataStoreSnapshot snapshot = JsonConvert.DeserializeObject<DataStoreSnapshot>(json, Defaults.SerializerSettings);
             _map = snapshot.Map;
             _mutex.ReleaseMutex();
         }

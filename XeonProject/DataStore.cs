@@ -5,15 +5,15 @@ namespace XeonProject
 {
     public static class Storage
     {
-        public static Cache Cache;
-        public static void LoadCache()
+        public static DataStore DataStore;
+        public static void LoadDataStore()
         {
-            string path = Program.Config.Cache.Path;
+            string path = Program.Config.DataStore.Path;
             if (!Path.IsPathRooted(path))
             {
                 path = Path.GetFullPath(path, Program.AppDir);
             }
-            Cache = new Cache(1000 * 60, path);
+            DataStore = new DataStore(1000 * 60, path);
         }
     }
 }
