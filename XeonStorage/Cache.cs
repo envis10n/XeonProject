@@ -4,10 +4,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using XeonCommon.IO;
 using XeonCommon.Storage;
 using XeonCommon;
-using System.Reflection;
-using System.IO;
 
 namespace XeonStorage
 {
@@ -81,7 +80,7 @@ namespace XeonStorage
         public async Task Save()
         {
             CacheSnapshot snapshot = TakeSnapshot();
-            await IO.WriteFile(snapshot.GetBytes(), Path);
+            await File.Async.OverwriteFile(snapshot.GetBytes(), Path);
             Log.WriteLine($"[{snapshot.Timestamp}] World cache saved.");
         }
         private async Task Load()
@@ -89,14 +88,14 @@ namespace XeonStorage
             Log.WriteLine("Cache loading from disk...");
             try
             {
-                byte[] data = await IO.ReadFile(Path);
+                byte[] data = await File.Async.ReadFile(Path);
                 LoadSnapshot(data);
                 Log.WriteLine($"Cache loaded from snapshot. Bytes: {data.Length}");
             }
             catch (System.IO.FileNotFoundException)
             {
                 Log.WriteLine($"Cache file not found. Writing new file at {Path}");
-                await IO.WriteFile(TakeSnapshot().GetBytes(), Path);
+                await File.Async.OverwriteFile(TakeSnapshot().GetBytes(), Path);
             }
             Log.WriteLine("Done.");
         }
