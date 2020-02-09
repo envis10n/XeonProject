@@ -5,11 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 using WatsonWebsocket;
 using XeonCommon.Network;
+using XeonCommon;
 
 namespace XeonCore.Network.Websocket
 {
     public class WServer
     {
+        private static Logger Log = new Logger("[WebSockets]");
         public delegate void WSClientConnect(WClient client);
         public delegate void WSClientDisconnect(WClient client);
         public event WSClientConnect Connect;
@@ -22,7 +24,6 @@ namespace XeonCore.Network.Websocket
             Server.ClientConnected = ConnectFunc;
             async Task<bool> ConnectFunc(string ipPort, HttpListenerRequest req)
             {
-                Console.WriteLine("Debug Client Connect");
                 WClient client = new WClient(this, ipPort);
                 Clients.Add(client);
                 Connect(client);
@@ -43,7 +44,7 @@ namespace XeonCore.Network.Websocket
                 client.EmitMessageReceived(message);
             }
             Server.Start();
-            Console.WriteLine($"WS Server listening on {hostname}:{port}");
+            Log.WriteLine($"Server listening on {hostname}:{port}...");
         }
         public WClient GetClient(string ipPort)
         {

@@ -77,5 +77,9 @@ namespace XeonCommon.IO
                 return System.IO.Directory.CreateDirectory(path);
             }
         }
+        public static string[] GetFiles(string path)
+        {
+            return System.IO.Directory.GetFiles(path);
+        }
     }
 }
