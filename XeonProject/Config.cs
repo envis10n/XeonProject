@@ -5,7 +5,7 @@ using XeonCommon;
 
 namespace XeonProject
 {
-    public struct WebSocketConfig
+    public struct NetConfig
     {
         public string Address;
         public int Port;
@@ -16,7 +16,7 @@ namespace XeonProject
     }
     public struct ProgramConfig
     {
-        public WebSocketConfig WebSocket;
+        public NetConfig Network;
         public DataStoreConfig DataStore;
     }
     public static class Config
@@ -24,8 +24,8 @@ namespace XeonProject
         private static Logger Log = new Logger("[Config]");
         public static readonly ProgramConfig Defaults = new ProgramConfig
         {
-            WebSocket = new WebSocketConfig { Address = "127.0.0.1", Port = 1337 },
-            DataStore = new DataStoreConfig { Path = "WorldDataStore.json" }
+            Network = new NetConfig { Address = "127.0.0.1", Port = 1337 },
+            DataStore = new DataStoreConfig { Path = "database" }
         };
         public static ProgramConfig LoadConfig(string configPath)
         {

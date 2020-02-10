@@ -1,5 +1,6 @@
 using XeonCore.Network;
-using XeonCore.Network.Websocket;
+using XeonNet.Sockets;
+using XeonNet;
 using System.Threading;
 using System;
 
@@ -7,36 +8,52 @@ namespace XeonProject
 {
     public static class Network
     {
-        public static NetManager<WClient> Manager = new NetManager<WClient>();
+        public static NetManager<XeonClient> Manager = new NetManager<XeonClient>();
         public static Thread NetworkThread = new Thread(() =>
             {
-                WServer server = new WServer(Program.Config.WebSocket.Address, Program.Config.WebSocket.Port);
-                server.Connect += (WClient client) =>
+                XeonServer server = new XeonServer(Program.Config.Network.Port, Program.Config.Network.Address);
+                server.OnClientConnect += (XeonClient client) =>
                 {
-                    Console.WriteLine($"Client connected: {client.Ip}");
-                    client.MessageReceived += (string data) =>
+                    Guid guid = Guid.Parse(client.GUID.ToString());
+                    client.OnMessage += (string data) =>
                     {
-                        NetEvent<WClient> e = new NetEvent<WClient> { Client = client, Payload = data };
+                        NetEvent<XeonClient> e = new NetEvent<XeonClient> { Client = client, Guid = guid, IsDisconnect = false, Payload = data };
                         Manager.Queue.CallNetEvent(e);
                     };
-                };
-
-                server.Disconnect += (WClient client) =>
-                {
-                    using (client)
+                    client.OnDisconnect += () =>
                     {
-                        Console.WriteLine($"Client disconnected: {client.Ip}");
-                    }
+                        NetEvent<XeonClient> e = new NetEvent<XeonClient> { Guid = guid, IsDisconnect = true, Client = null, Payload = null };
+                        Manager.Queue.CallNetEvent(e);
+                    };
+                    client.OnTelnet += (packet) =>
+                    {
+                        switch (packet.Command) 
+                        {
+                            case Telnet.Command.SB:
+                                switch (packet.Option)
+                                {
+                                    case Telnet.Option.GMCP:
+                                        GMCP.GmcpData gmcp = GMCP.GmcpData.FromTelnetPacket(packet);
+                                        Console.WriteLine($"Client <{guid}> GMCP Packet received:\n{gmcp}");
+                                        break;
+                                }
+                                break;
+                            default:
+                                Console.WriteLine($"Client <{guid}> telnet event:\n{packet}");
+                                break;
+                        }
+                    };
                 };
+                server.Start();
             });
         public static Thread NetQueueWatcher = new Thread(() =>
             {
                 while (true)
                 {
-                    bool success = Manager.Queue.Poll(out NetEvent<WClient>[] events);
+                    bool success = Manager.Queue.Poll(out NetEvent<XeonClient>[] events);
                     if (success)
                     {
-                        foreach (NetEvent<WClient> e in events)
+                        foreach (NetEvent<XeonClient> e in events)
                         {
                             Manager.EmitNetEvent(e);
                         }

@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.IO;
 using System;
+using XeonNet;
 
 namespace XeonProject
 {
@@ -27,11 +28,6 @@ namespace XeonProject
             {
                 Config = XeonProject.Config.LoadConfig(Path.GetFullPath("XeonConfig.json", AppDir));
             }
-            Sandbox.Lua.RegisterFunction("_GetFrames", new Func<string>(() =>
-            {
-                return Events.EventLoop.GetFrames();
-            }));
-            Sandbox.Lua.UpdateSandboxEnv("{ GetFrames = _GetFrames }");
             Network.Start();
             Game.GameThread.Start();
             Events.EventLoop.Start();

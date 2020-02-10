@@ -6,12 +6,14 @@ using XeonCommon.Network;
 
 namespace XeonCore.Network
 {
-    public struct NetEvent<T> where T : IClient
+    public struct NetEvent<T> where T : INetClient
     {
         public T Client;
+        public Guid Guid;
         public string Payload;
+        public bool IsDisconnect;
     }
-    public class NetQueue<T> : IDisposable where T : IClient
+    public class NetQueue<T> : IDisposable where T : INetClient
     {
         private Mutex Mut = new Mutex();
         public delegate void NetEventEnqueue(NetEvent<T> e);
