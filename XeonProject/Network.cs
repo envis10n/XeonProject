@@ -25,7 +25,7 @@ namespace XeonProject
                         NetEvent<XeonClient> e = new NetEvent<XeonClient> { Guid = guid, IsDisconnect = true, Client = null, Payload = null };
                         Manager.Queue.CallNetEvent(e);
                     };
-                    client.OnTelnet += (packet) =>
+                    client.OnTelnet += async (packet) =>
                     {
                         switch (packet.Command) 
                         {
@@ -36,6 +36,34 @@ namespace XeonProject
                                         GMCP.GmcpData gmcp = GMCP.GmcpData.FromTelnetPacket(packet);
                                         Console.WriteLine($"Client <{guid}> GMCP Packet received:\n{gmcp}");
                                         break;
+                                }
+                                break;
+                            case Telnet.Command.WILL:
+                                if (!client.HasOption(packet.Option))
+                                {
+                                    client.ToggleOption(packet.Option);
+                                    await client.SendTelnet(Telnet.Command.DO, packet.Option);
+                                }
+                                break;
+                            case Telnet.Command.WONT:
+                                if (client.HasOption(packet.Option))
+                                {
+                                    client.ToggleOption(packet.Option);
+                                    await client.SendTelnet(Telnet.Command.DONT, packet.Option);
+                                }
+                                break;
+                            case Telnet.Command.DO:
+                                if (!client.HasOption(packet.Option))
+                                {
+                                    client.ToggleOption(packet.Option);
+                                    await client.SendTelnet(Telnet.Command.WILL, packet.Option);
+                                }
+                                break;
+                            case Telnet.Command.DONT:
+                                if (client.HasOption(packet.Option))
+                                {
+                                    client.ToggleOption(packet.Option);
+                                    await client.SendTelnet(Telnet.Command.WONT, packet.Option);
                                 }
                                 break;
                             default:

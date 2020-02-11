@@ -9,44 +9,44 @@ namespace XeonNet
     public static class Telnet
     {
         public const byte IAC = 255;
-        public enum Command : byte
+        public static class Command
         {
-            SE = 240,
-            NOP = 241,
-            DataMark = 242,
-            Break = 243,
-            Interrupt = 244,
-            AbortOutput = 245,
-            AreYouThere = 246,
-            EraseCharacter = 247,
-            EraseLine = 248,
-            GoAhead = 249,
-            SB = 250,
-            WILL = 251,
-            WONT = 252,
-            DO = 253,
-            DONT = 254
+            public const byte SE = 240;
+            public const byte NOP = 241;
+            public const byte DataMark = 242;
+            public const byte Break = 243;
+            public const byte Interrupt = 244;
+            public const byte AbortOutput = 245;
+            public const byte AreYouThere = 246;
+            public const byte EraseCharacter = 247;
+            public const byte EraseLine = 248;
+            public const byte GoAhead = 249;
+            public const byte SB = 250;
+            public const byte WILL = 251;
+            public const byte WONT = 252;
+            public const byte DO = 253;
+            public const byte DONT = 254;
         }
-        public enum Option : byte
+        public static class Option
         {
-            Extended = 255,
-            BinaryTransmission = 0,
-            Echo = 1,
-            SuppressGoAhead = 3,
-            Status = 5,
-            TimingMark = 6,
-            GMCP = 201
+            public const byte Extended = (byte)255;
+            public const byte BinaryTransmission = (byte)0;
+            public const byte Echo = (byte)1;
+            public const byte SuppressGoAhead = (byte)3;
+            public const byte Status = (byte)5;
+            public const byte TimingMark = (byte)6;
+            public const byte GMCP = (byte)201;
         }
         public struct TelnetPacket
         {
-            public Command Command;
-            public Option Option;
+            public byte Command;
+            public byte Option;
             public byte[] Payload;
             public override string ToString()
             {
                 if (Payload == null)
                     Payload = new byte[0];
-                return $"[XeonNet.Telnet.TelnetPacket]\nCommand: {Enum.GetName(Command.GetType(), Command)}\nOption: {Enum.GetName(Option.GetType(), Option)}\nPayload: {Encoding.UTF8.GetString(Payload)}";
+                return $"[XeonNet.Telnet.TelnetPacket]\nCommand: {Command}\nOption: {Option}\nPayload: {Encoding.UTF8.GetString(Payload)}";
             }
         }
         
@@ -59,18 +59,18 @@ namespace XeonNet
                 remaining = unparsed;
                 seq.ForEach(s =>
                 {
-                    switch ((Command)s[1])
+                    switch (s[1])
                     {
                         case Command.DO:
                         case Command.DONT:
                         case Command.WILL:
                         case Command.WONT:
-                            list.Add(new TelnetPacket { Command = (Command)s[1], Option = (Option)s[2] });
+                            list.Add(new TelnetPacket { Command = s[1], Option = s[2] });
                             break;
                         case Command.SB:
                             byte[] payload = new byte[s.Length - 3];
                             Buffer.BlockCopy(s, 3, payload, 0, payload.Length);
-                            list.Add(new TelnetPacket { Command = (Command)s[1], Option = (Option)s[2], Payload = payload });
+                            list.Add(new TelnetPacket { Command = s[1], Option = s[2], Payload = payload });
                             break;
                         case Command.SE:
                             // Ignore sub-negotiation end.
@@ -82,6 +82,22 @@ namespace XeonNet
                 remaining = data;
             }
             return list;
+        }
+        public static byte[] CreateTelnetData(byte command, byte option)
+        {
+            return new byte[] { IAC, command, option };
+        }
+        public static byte[] CreateGMCPData(string path, Dictionary<string, object> payload)
+        {
+            string p = JsonConvert.SerializeObject(payload);
+            byte[] pD = Encoding.UTF8.GetBytes($"{path} {p}");
+            byte[] final = new byte[pD.Length + 5];
+            final[0] = IAC;
+            final[1] = Command.SB;
+            final[2] = Option.GMCP;
+            Buffer.BlockCopy(pD, 0, final, 3, pD.Length);
+            Buffer.BlockCopy(new byte[] { IAC, (byte)Command.SE }, 0, final, pD.Length, 2);
+            return final;
         }
     }
 }

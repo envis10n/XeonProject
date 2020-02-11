@@ -23,6 +23,7 @@ namespace XeonNet.Sockets
         private byte[] buffer;
         private TcpClient Client;
         private NetworkStream Stream;
+        public List<byte> Options = new List<byte>();
         public XeonClient(TcpClient client)
         {
             Client = client;
@@ -95,10 +96,46 @@ namespace XeonNet.Sockets
             });
             t.Start();
         }
+        public bool HasOption(byte option)
+        {
+            return Options.Contains(option);
+        }
+        public void ToggleOption(byte option)
+        {
+            if (Options.Contains(option))
+            {
+                Options.Remove(option);
+            } else
+            {
+                Options.Add(option);
+            }
+        }
+        public async Task SendTelnet(byte command, byte option)
+        {
+            try
+            {
+                byte[] t = Telnet.CreateTelnetData(command, option);
+                await Stream.WriteAsync(t, 0, t.Length);
+            } catch (Exception)
+            {
+                //
+            }
+        }
+        public async Task SendGMCP(string path, Dictionary<string, object> payload)
+        {
+            try
+            {
+                byte[] t = Telnet.CreateGMCPData(path, payload);
+                await Stream.WriteAsync(t, 0, t.Length);
+            } catch (Exception)
+            {
+                //
+            }
+        }
         public async Task WriteLine(string data)
         {
             try { 
-                byte[] buffer = Encoding.UTF8.GetBytes(data);
+                byte[] buffer = Encoding.UTF8.GetBytes(data+"\n\r");
                 await Stream.WriteAsync(buffer, 0, buffer.Length);
             } catch (Exception)
             {
@@ -187,6 +224,8 @@ namespace XeonNet.Sockets
                             list.Value.Add(xclient);
                         }
                         Log.WriteLine($"Client <{xclient.GUID}> connected: {xclient.RemoteEndPoint}");
+                        xclient.ToggleOption(Telnet.Option.GMCP);
+                        await xclient.SendTelnet(Telnet.Command.WILL, Telnet.Option.GMCP);
                         InvokeClientConnect(xclient);
                     }
                 }
