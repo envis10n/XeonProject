@@ -29,6 +29,7 @@ namespace XeonNet.Sockets
         private TcpClient Client;
         private NetworkStream Stream;
         public WrapMutex<List<byte>> Options = new WrapMutex<List<byte>>(new List<byte>());
+        public BufferBuilder ClientBuffer = new BufferBuilder();
         public XeonClient(TcpClient client)
         {
             Client = client;
@@ -77,10 +78,10 @@ namespace XeonNet.Sockets
                     try
                     {
                         Client.Client.Send(new byte[1], 0, 0);
-                        BufferBuilder builder = new BufferBuilder();
                         int bytesRead = 0;
                         while (Stream.DataAvailable)
                         {
+                            Console.WriteLine("Stream data");
                             buffer = new byte[1024];
                             int localBytes = await Stream.ReadAsync(buffer, 0, buffer.Length);
                             bytesRead += localBytes;
@@ -88,35 +89,31 @@ namespace XeonNet.Sockets
                             {
                                 byte[] temp = new byte[localBytes];
                                 Buffer.BlockCopy(buffer, 0, temp, 0, localBytes);
-                                builder.Add(temp);
+                                buffer = temp;
                             }
-                            else
+                            ClientBuffer.Add(buffer);
+                            if (BufUtil.CountDelim(ClientBuffer.InternalBuffer, Telnet.IAC) > 0)
                             {
-                                builder.Add(buffer);
-                            }
-                        }
-                        if (bytesRead > 0)
-                        {
-                            byte[] buf = builder.Consume();
-                            builder = null;
-                            if (BufUtil.CountDelim(buf, Telnet.IAC) > 0)
-                            {
-                                List<Telnet.TelnetPacket> packets = Telnet.Parse(buf, out byte[] remaining);
+                                Console.WriteLine("Telnet Parsing");
+                                List<Telnet.TelnetPacket> packets = Telnet.Parse(ClientBuffer.InternalBuffer, out byte[] remaining);
+                                ClientBuffer = new BufferBuilder();
                                 packets.ForEach(packet =>
                                 {
                                     InvokeOnTelnet(packet);
                                 });
                                 if (remaining.Length > 0)
                                 {
-                                    string data = Encoding.UTF8.GetString(remaining);
-                                    InvokeOnMessage(data);
+                                    Console.WriteLine("Remaining!");
+                                    ClientBuffer.Add(remaining);
                                 }
                             }
-                            else
-                            {
-                                string data = Encoding.UTF8.GetString(buf);
-                                InvokeOnMessage(data);
-                            }
+                        }
+                        if (ClientBuffer.CanConsume())
+                        {
+                            byte[] buf = BufUtil.StripEOL(ClientBuffer.Consume());
+                            ClientBuffer = new BufferBuilder();
+                            string data = Encoding.UTF8.GetString(buf);
+                            InvokeOnMessage(data);
                         }
                     }
                     catch (SocketException)
@@ -227,6 +224,17 @@ namespace XeonNet.Sockets
         {
             try { 
                 byte[] buffer = Encoding.UTF8.GetBytes(data+"\n\r");
+                await Stream.WriteAsync(buffer, 0, buffer.Length);
+            } catch (Exception)
+            {
+                //
+            }
+        }
+        public async Task Write(string data)
+        {
+            try
+            {
+                byte[] buffer = Encoding.UTF8.GetBytes(data);
                 await Stream.WriteAsync(buffer, 0, buffer.Length);
             } catch (Exception)
             {
@@ -350,8 +358,9 @@ namespace XeonNet.Sockets
                             list.Value.Add(xclient);
                         }
                         Log.WriteLine($"Client <{xclient.GUID}> connected: {xclient.RemoteEndPoint}");
-                        xclient.ToggleOption(Telnet.Option.GMCP);
-                        await xclient.SendTelnet(Telnet.Command.WILL, Telnet.Option.GMCP);
+                        await xclient.WriteLine("Welcome to the Xeon Project.");
+                        await xclient.Write("lua> ");
+                        await xclient.Will(Telnet.Option.GMCP);
                         InvokeClientConnect(xclient);
                     }
                 }

@@ -26,12 +26,14 @@ namespace XeonProject
                                 Console.WriteLine($"Lua syntax error: {result[1]}");
                                 Console.WriteLine($"Payload length: {e.Payload.Length}");
                                 await e.Client.WriteLine($"Lua syntax error: {result[1]}");
+                                await e.Client.Write("lua> ");
                             }
                             else if (!(bool)result[0])
                             {
                                 // Lua runtime error
                                 Console.WriteLine($"Lua runtime error: {result[1]}");
                                 await e.Client.WriteLine($"Lua runtime error: {result[1]}");
+                                await e.Client.Write("lua> ");
                             }
                             else
                             {
@@ -49,17 +51,20 @@ namespace XeonProject
                                         res += "\nnull";
                                 }
                                 await e.Client.WriteLine(res);
+                                await e.Client.Write("lua> ");
                             }
                         }
                         catch (SandboxException ex)
                         {
                             Console.WriteLine($"Lua sandbox error: {ex.Message}");
                             await e.Client.WriteLine($"Lua sandbox error: {ex.Message}");
+                            await e.Client.Write("lua> ");
                         }
                         catch (TimeoutException)
                         {
                             Console.WriteLine("Lua script timed out.");
                             await e.Client.WriteLine("Lua script timed out.");
+                            await e.Client.Write("lua> ");
                         }
                     });
                 };

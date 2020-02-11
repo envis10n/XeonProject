@@ -8,32 +8,34 @@ namespace XeonCommon.Network
     }
     public class BufferBuilder : IDisposable
     {
-        List<byte[]> Buffers = new List<byte[]>();
+        public byte[] InternalBuffer;
         public void Add(byte[] buffer)
         {
-            Buffers.Add(buffer);
+            if (InternalBuffer == null)
+            {
+                InternalBuffer = buffer;
+            }
+            else
+            {
+                byte[] temp = (byte[])InternalBuffer.Clone();
+                InternalBuffer = new byte[buffer.Length + temp.Length];
+                Buffer.BlockCopy(temp, 0, InternalBuffer, 0, temp.Length);
+                Buffer.BlockCopy(buffer, 0, InternalBuffer, temp.Length, buffer.Length);
+            }
         }
         public byte[] Consume()
         {
-            int size = 0;
-            int pointer = 0;
-            Buffers.ForEach(buf =>
-            {
-                size += buf.Length;
-            });
-            byte[] buffer = new byte[size];
-            Buffers.ForEach(buf =>
-            {
-                Buffer.BlockCopy(buf, 0, buffer, pointer, buf.Length);
-                pointer += buf.Length;
-            });
-            Dispose();
-            return buffer;
+            byte[] temp = (byte[])InternalBuffer.Clone();
+            InternalBuffer = null;
+            return temp;
+        }
+        public bool CanConsume()
+        {
+            return InternalBuffer != null && InternalBuffer.Length > 0 && BufUtil.HasEOL(InternalBuffer);
         }
         public void Dispose()
         {
-            Buffers.Clear();
-            Buffers = null;
+            InternalBuffer = null;
         }
     }
 }

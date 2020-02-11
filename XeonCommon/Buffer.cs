@@ -6,6 +6,43 @@ namespace XeonCommon
 {
     public static class BufUtil
     {
+        public enum EOLFormat
+        {
+            CR,
+            LF,
+            CRLF
+        }
+        public static bool HasEOL(byte[] buffer, EOLFormat format = EOLFormat.LF)
+        {
+            int end = buffer.Length - 1;
+            switch (format)
+            {
+                case EOLFormat.CR:
+                    return buffer[end] == 13;
+                case EOLFormat.LF:
+                    return buffer[end] == 10;
+                case EOLFormat.CRLF:
+                    return buffer[end - 1] == 13 && buffer[end] == 10;
+                default:
+                    return buffer[end] == 10;
+            }
+        }
+        public static byte[] StripEOL(byte[] buffer, EOLFormat format = EOLFormat.LF)
+        {
+            int end = buffer.Length - 1;
+            byte[] temp;
+            switch (format)
+            {
+                case EOLFormat.CRLF:
+                    temp = new byte[buffer.Length - 2];
+                    Buffer.BlockCopy(buffer, 0, temp, 0, temp.Length);
+                    return temp;
+                default:
+                    temp = new byte[buffer.Length - 1];
+                    Buffer.BlockCopy(buffer, 0, temp, 0, temp.Length);
+                    return temp;
+            }
+        }
         public static int CountDelim(byte[] data, byte delim)
         {
             int count = 0;

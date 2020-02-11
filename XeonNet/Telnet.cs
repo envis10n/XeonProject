@@ -29,13 +29,14 @@ namespace XeonNet
         }
         public static class Option
         {
-            public const byte Extended = (byte)255;
-            public const byte BinaryTransmission = (byte)0;
-            public const byte Echo = (byte)1;
-            public const byte SuppressGoAhead = (byte)3;
-            public const byte Status = (byte)5;
-            public const byte TimingMark = (byte)6;
-            public const byte GMCP = (byte)201;
+            public const byte Extended = 255;
+            public const byte BinaryTransmission = 0;
+            public const byte Echo = 1;
+            public const byte SuppressGoAhead = 3;
+            public const byte Status = 5;
+            public const byte TimingMark = 6;
+            public const byte GMCP = 201;
+            public const byte LineMode = 34;
         }
         public struct TelnetPacket
         {
