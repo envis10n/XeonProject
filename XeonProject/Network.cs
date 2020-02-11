@@ -12,6 +12,7 @@ namespace XeonProject
         public static Thread NetworkThread = new Thread(() =>
             {
                 XeonServer server = new XeonServer(Program.Config.Network.Port, Program.Config.Network.Address);
+                XeonCommon.Logger Log = server.Log;
                 server.OnClientConnect += (XeonClient client) =>
                 {
                     Guid guid = Guid.Parse(client.GUID.ToString());
@@ -25,51 +26,22 @@ namespace XeonProject
                         NetEvent<XeonClient> e = new NetEvent<XeonClient> { Guid = guid, IsDisconnect = true, Client = null, Payload = null };
                         Manager.Queue.CallNetEvent(e);
                     };
-                    client.OnTelnet += async (packet) =>
+                    client.OnTelnetDo += (option) =>
                     {
-                        switch (packet.Command) 
+                        switch (option)
                         {
-                            case Telnet.Command.SB:
-                                switch (packet.Option)
-                                {
-                                    case Telnet.Option.GMCP:
-                                        GMCP.GmcpData gmcp = GMCP.GmcpData.FromTelnetPacket(packet);
-                                        Console.WriteLine($"Client <{guid}> GMCP Packet received:\n{gmcp}");
-                                        break;
-                                }
-                                break;
-                            case Telnet.Command.WILL:
-                                if (!client.HasOption(packet.Option))
-                                {
-                                    client.ToggleOption(packet.Option);
-                                    await client.SendTelnet(Telnet.Command.DO, packet.Option);
-                                }
-                                break;
-                            case Telnet.Command.WONT:
-                                if (client.HasOption(packet.Option))
-                                {
-                                    client.ToggleOption(packet.Option);
-                                    await client.SendTelnet(Telnet.Command.DONT, packet.Option);
-                                }
-                                break;
-                            case Telnet.Command.DO:
-                                if (!client.HasOption(packet.Option))
-                                {
-                                    client.ToggleOption(packet.Option);
-                                    await client.SendTelnet(Telnet.Command.WILL, packet.Option);
-                                }
-                                break;
-                            case Telnet.Command.DONT:
-                                if (client.HasOption(packet.Option))
-                                {
-                                    client.ToggleOption(packet.Option);
-                                    await client.SendTelnet(Telnet.Command.WONT, packet.Option);
-                                }
-                                break;
-                            default:
-                                Console.WriteLine($"Client <{guid}> telnet event:\n{packet}");
+                            case Telnet.Option.GMCP:
+                                client.SetOption(option);
                                 break;
                         }
+                    };
+                    client.OnTelnetSB += (packet) =>
+                    {
+                        Log.WriteLine($"Unhandled SB from {guid}: {packet.Option} {System.Text.Encoding.UTF8.GetString(packet.Payload)}");
+                    };
+                    client.OnGMCP += (gmcp) =>
+                    {
+                        Log.WriteLine($"GMCP from {guid}:\n{gmcp}");
                     };
                 };
                 server.Start();

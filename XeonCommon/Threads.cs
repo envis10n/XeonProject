@@ -25,6 +25,10 @@ namespace XeonCommon.Threads
         {
             Value = val;
         }
+        public WrapMutex()
+        {
+            Value = default;
+        }
         public void Dispose()
         {
             Mut.Dispose();

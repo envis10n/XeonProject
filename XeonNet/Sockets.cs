@@ -15,20 +15,61 @@ namespace XeonNet.Sockets
     {
         public readonly Guid GUID = Guid.NewGuid();
         public readonly string RemoteEndPoint;
-        public delegate void HadMessageEvent(string data);
-        public delegate void HadTelnetEvent(Telnet.TelnetPacket packet);
-        public event HadMessageEvent OnMessage;
+        public event Action<string> OnMessage;
         public event Action OnDisconnect;
-        public event HadTelnetEvent OnTelnet;
+        public event Action<Telnet.TelnetPacket> OnTelnet;
+        public event Action<byte> OnTelnetWill;
+        public event Action<byte> OnTelnetWont;
+        public event Action<byte> OnTelnetDo;
+        public event Action<byte> OnTelnetDont;
+        public event Action<GMCP.GmcpData> OnGMCP;
+        public event Action<Telnet.TelnetPacket> OnTelnetSB;
+        public event Action<Telnet.TelnetPacket> OnTelnetUnhandled;
         private byte[] buffer;
         private TcpClient Client;
         private NetworkStream Stream;
-        public List<byte> Options = new List<byte>();
+        public WrapMutex<List<byte>> Options = new WrapMutex<List<byte>>(new List<byte>());
         public XeonClient(TcpClient client)
         {
             Client = client;
             RemoteEndPoint = Client.Client.RemoteEndPoint.ToString();
             Stream = Client.GetStream();
+
+            // Handle Telnet events internally first.
+            OnTelnet += (packet) =>
+            {
+                switch (packet.Command)
+                {
+                    case Telnet.Command.SB:
+                        switch (packet.Option)
+                        {
+                            case Telnet.Option.GMCP:
+                                GMCP.GmcpData gmcp = GMCP.GmcpData.FromTelnetPacket(packet);
+                                InvokeOnGMCP(gmcp);
+                                break;
+                            default:
+                                InvokeOnTelnetSB(packet);
+                                break;
+                        }
+                        break;
+                    case Telnet.Command.WILL:
+                        InvokeOnTelnetWill(packet.Option);
+                        break;
+                    case Telnet.Command.WONT:
+                        InvokeOnTelnetWont(packet.Option);
+                        break;
+                    case Telnet.Command.DO:
+                        InvokeOnTelnetDo(packet.Option);
+                        break;
+                    case Telnet.Command.DONT:
+                        InvokeOnTelnetDont(packet.Option);
+                        break;
+                    default:
+                        InvokeOnTelnetUnhandled(packet);
+                        break;
+                }
+            };
+
             Task t = new Task(async () =>
             {
                 while (true)
@@ -68,21 +109,13 @@ namespace XeonNet.Sockets
                                 if (remaining.Length > 0)
                                 {
                                     string data = Encoding.UTF8.GetString(remaining);
-                                    foreach (string line in data.Split("\n"))
-                                    {
-                                        if (line.Length > 0)
-                                            InvokeOnMessage(line);
-                                    }
+                                    InvokeOnMessage(data);
                                 }
                             }
                             else
                             {
                                 string data = Encoding.UTF8.GetString(buf);
-                                foreach (string line in data.Split("\n"))
-                                {
-                                    if (line.Length > 0)
-                                        InvokeOnMessage(line);
-                                }
+                                InvokeOnMessage(data);
                             }
                         }
                     }
@@ -98,17 +131,75 @@ namespace XeonNet.Sockets
         }
         public bool HasOption(byte option)
         {
-            return Options.Contains(option);
+            using var opts = Options.Lock();
+            return opts.Value.Contains(option);
         }
         public void ToggleOption(byte option)
         {
-            if (Options.Contains(option))
+            using var opts = Options.Lock();
+            if (opts.Value.Contains(option))
             {
-                Options.Remove(option);
+                opts.Value.Remove(option);
             } else
             {
-                Options.Add(option);
+                opts.Value.Add(option);
             }
+        }
+        public bool SetOption(byte option)
+        {
+            using var opts = Options.Lock();
+            if (opts.Value.Contains(option))
+                return false;
+            opts.Value.Add(option);
+            return true;
+        }
+        public bool RemoveOption(byte option)
+        {
+            using var opts = Options.Lock();
+            if (!opts.Value.Contains(option))
+                return false;
+            opts.Value.Remove(option);
+            return true;
+        }
+        public async Task<bool> Will(byte option)
+        {
+            if (SetOption(option))
+            {
+                await SendTelnet(Telnet.Command.WILL, option);
+                return true;
+            }
+            else
+                return false;
+        }
+        public async Task<bool> Wont(byte option)
+        {
+            if (RemoveOption(option))
+            {
+                await SendTelnet(Telnet.Command.WONT, option);
+                return true;
+            }
+            else
+                return false;
+        }
+        public async Task<bool> Do(byte option)
+        {
+            if (SetOption(option))
+            {
+                await SendTelnet(Telnet.Command.DO, option);
+                return true;
+            }
+            else
+                return false;
+        }
+        public async Task<bool> Dont(byte option)
+        {
+            if (RemoveOption(option))
+            {
+                await SendTelnet(Telnet.Command.DONT, option);
+                return true;
+            }
+            else
+                return false;
         }
         public async Task SendTelnet(byte command, byte option)
         {
@@ -145,6 +236,41 @@ namespace XeonNet.Sockets
         public void Dispose()
         {
             Client.Dispose();
+        }
+        public void InvokeOnTelnetUnhandled(Telnet.TelnetPacket packet)
+        {
+            if (OnTelnetUnhandled != null)
+                OnTelnetUnhandled.Invoke(packet);
+        }
+        public void InvokeOnTelnetWill(byte option)
+        {
+            if (OnTelnetWill != null)
+                OnTelnetWill.Invoke(option);
+        }
+        public void InvokeOnTelnetWont(byte option)
+        {
+            if (OnTelnetWont != null)
+                OnTelnetWont.Invoke(option);
+        }
+        public void InvokeOnTelnetDo(byte option)
+        {
+            if (OnTelnetDo != null)
+                OnTelnetDo.Invoke(option);
+        }
+        public void InvokeOnTelnetDont(byte option)
+        {
+            if (OnTelnetDont != null)
+                OnTelnetDont.Invoke(option);
+        }
+        public void InvokeOnTelnetSB(Telnet.TelnetPacket packet)
+        {
+            if (OnTelnetSB != null)
+                OnTelnetSB.Invoke(packet);
+        }
+        public void InvokeOnGMCP(GMCP.GmcpData data)
+        {
+            if (OnGMCP != null)
+                OnGMCP.Invoke(data);
         }
         public void InvokeOnTelnet(Telnet.TelnetPacket packet)
         {

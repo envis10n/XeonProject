@@ -35,7 +35,6 @@ namespace XeonNet
                     throw new InvalidGmcpPacketException();
                 GmcpData temp = new GmcpData();
                 string payload = Encoding.UTF8.GetString(packet.Payload);
-                Console.WriteLine($"Debug GMCP Payload: {payload}");
                 int ns = payload.IndexOf('.');
                 int nsep = payload.IndexOf(' ');
                 string nameSpace;
