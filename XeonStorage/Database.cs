@@ -75,7 +75,7 @@ namespace XeonStorage
         {
             Add(Document.FromDictionary(dict));
         }
-        public override Document? FindOne(Predicate<Document> predicate)
+        public override Document FindOne(Predicate<Document> predicate)
         {
             Mut.WaitOne();
             Document t = Find(predicate);
@@ -132,11 +132,13 @@ namespace XeonStorage
         public Database(string path, int saveInterval)
         {
             Path = path;
+            Log.WriteLine($"Database path: {Path}");
             Interval = saveInterval;
             _saveTimer = new Timer((Object stateInfo) =>
             {
                 Save();
             }, null, Interval, Interval);
+            Load();
         }
         public override bool AddCollection(string name, out Collection collection)
         {
@@ -176,7 +178,7 @@ namespace XeonStorage
             Mut.ReleaseMutex();
             Log.WriteLine("Done.");
         }
-        public override Collection? GetCollection(string name)
+        public override Collection GetCollection(string name)
         {
             Mut.WaitOne();
             bool success = Collections.TryGetValue(name, out Collection val);
@@ -185,6 +187,13 @@ namespace XeonStorage
                 return null;
             else
                 return val;
+        }
+        public bool HasCollection(string name)
+        {
+            Mut.WaitOne();
+            bool success = Collections.TryGetValue(name, out Collection val);
+            Mut.ReleaseMutex();
+            return success;
         }
         public override bool Load()
         {

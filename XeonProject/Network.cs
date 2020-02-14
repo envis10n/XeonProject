@@ -3,10 +3,12 @@ using XeonNet.Sockets;
 using XeonNet;
 using System.Threading;
 using System;
+using XeonCore.Game;
+using XeonStorage;
 
 namespace XeonProject
 {
-    public static class Network
+    static class Network
     {
         public static NetManager<XeonClient> Manager = new NetManager<XeonClient>();
         public static Thread NetworkThread = new Thread(() =>
@@ -16,6 +18,19 @@ namespace XeonProject
                 server.OnClientConnect += (XeonClient client) =>
                 {
                     Guid guid = Guid.Parse(client.GUID.ToString());
+                    Collection? actors = DataStorage.Database.GetCollection("actors");
+                    Actor player;
+                    if (actors != null)
+                    {
+                        Document playerDoc = new Document();
+                        playerDoc.Add(guid.ToString(), new Actor());
+                        if (playerDoc.TryGetValue(guid.ToString(), out object pobj))
+                        {
+                            player = (Actor)pobj;
+                            actors.Add(playerDoc);
+                            DataStorage.Database.Save();
+                        }
+                    }
                     client.OnMessage += (string data) =>
                     {
                         NetEvent<XeonClient> e = new NetEvent<XeonClient> { Client = client, Guid = guid, IsDisconnect = false, Payload = data };
@@ -23,6 +38,11 @@ namespace XeonProject
                     };
                     client.OnDisconnect += () =>
                     {
+                        if (actors != null)
+                        {
+                            actors.RemoveMatching(d => d.ContainsKey(guid.ToString()));
+                            DataStorage.Database.Save();
+                        }
                         NetEvent<XeonClient> e = new NetEvent<XeonClient> { Guid = guid, IsDisconnect = true, Client = null, Payload = null };
                         Manager.Queue.CallNetEvent(e);
                     };
@@ -31,9 +51,20 @@ namespace XeonProject
                         switch (option)
                         {
                             case Telnet.Option.GMCP:
-                                client.SetOption(option);
-                                break;
+                                return true;
+                            case Telnet.Option.LineMode:
+                                return true;
                         }
+                        return false;
+                    };
+                    client.OnTelnetWill += (option) =>
+                    {
+                        switch (option)
+                        {
+                            case Telnet.Option.LineMode:
+                                return true;
+                        }
+                        return false;
                     };
                     client.OnTelnetSB += (packet) =>
                     {

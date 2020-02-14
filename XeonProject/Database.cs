@@ -3,7 +3,7 @@ using System.IO;
 
 namespace XeonProject
 {
-    public static class Storage
+    static class DataStorage
     {
         public static Database Database = new Database(
             !Path.IsPathRooted(Program.Config.DataStore.Path) ? 
@@ -11,5 +11,14 @@ namespace XeonProject
             Program.AppDir) : Program.Config.DataStore.Path,
             60 * 1000
         );
+        public static void Setup()
+        {
+            // Init new DB stuff here
+            if (!Database.HasCollection("actors"))
+            {
+                Database.AddCollection("actors", out Collection actors);
+            }
+            Database.Save();
+        }
     }
 }

@@ -6,7 +6,7 @@ using XeonCore.Sandbox;
 
 namespace XeonProject
 {
-    public static class Game
+    static class Game
     {
         public static Thread GameThread = new Thread(() =>
             {

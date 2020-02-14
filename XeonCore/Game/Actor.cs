@@ -1,6 +1,6 @@
 ﻿namespace XeonCore.Game
 {
-    public abstract class Actor : Entity
+    public class Actor : Entity
     {
 
     }

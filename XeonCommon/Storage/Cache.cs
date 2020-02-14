@@ -4,7 +4,7 @@ namespace XeonCommon.Storage
 {
     public abstract class StorageObject
     {
-        private object Value;
+        private readonly object Value;
         private Mutex Mut = new Mutex();
         public abstract object Lock();
         public abstract T Lock<T>();

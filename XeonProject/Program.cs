@@ -28,6 +28,13 @@ namespace XeonProject
             {
                 Config = XeonProject.Config.LoadConfig(Path.GetFullPath("XeonConfig.json", AppDir));
             }
+
+            bool added = Sandbox.Lua.RegisterFunction("testPrint", new Action<string>((arg) =>
+            {
+                Console.WriteLine($"Lua Sandbox Print: {arg}");
+            }));
+
+            DataStorage.Setup();
             Network.Start();
             Game.GameThread.Start();
             Events.EventLoop.Start();

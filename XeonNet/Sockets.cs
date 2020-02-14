@@ -13,22 +13,23 @@ namespace XeonNet.Sockets
 {
     public class XeonClient : INetClient
     {
+        public delegate bool TelnetOptionNeg(byte option);
         public readonly Guid GUID = Guid.NewGuid();
         public readonly string RemoteEndPoint;
         public event Action<string> OnMessage;
         public event Action OnDisconnect;
         public event Action<Telnet.TelnetPacket> OnTelnet;
-        public event Action<byte> OnTelnetWill;
-        public event Action<byte> OnTelnetWont;
-        public event Action<byte> OnTelnetDo;
-        public event Action<byte> OnTelnetDont;
+        public event TelnetOptionNeg OnTelnetWill;
+        public event TelnetOptionNeg OnTelnetWont;
+        public event TelnetOptionNeg OnTelnetDo;
+        public event TelnetOptionNeg OnTelnetDont;
         public event Action<GMCP.GmcpData> OnGMCP;
         public event Action<Telnet.TelnetPacket> OnTelnetSB;
         public event Action<Telnet.TelnetPacket> OnTelnetUnhandled;
         private byte[] buffer;
         private TcpClient Client;
         private NetworkStream Stream;
-        public WrapMutex<List<byte>> Options = new WrapMutex<List<byte>>(new List<byte>());
+        public WrapMutex<Dictionary<byte, Telnet.TelnetOptionState>> Options = new WrapMutex<Dictionary<byte, Telnet.TelnetOptionState>>(new Dictionary<byte, Telnet.TelnetOptionState>());
         public BufferBuilder ClientBuffer = new BufferBuilder();
         public XeonClient(TcpClient client)
         {
@@ -54,16 +55,56 @@ namespace XeonNet.Sockets
                         }
                         break;
                     case Telnet.Command.WILL:
-                        InvokeOnTelnetWill(packet.Option);
+                        if (!IsWaitingOn(packet.Option))
+                        {
+                            // Client initiated
+                            SetOption(packet.Option, Telnet.TelnetOptionState.Waiting);
+                            InvokeOnTelnetWill(packet.Option);
+                        }
+                        else
+                        {
+                            // Server initiated.
+                            SetOption(packet.Option, Telnet.TelnetOptionState.Enabled);
+                        }
                         break;
                     case Telnet.Command.WONT:
-                        InvokeOnTelnetWont(packet.Option);
+                        if (!IsWaitingOn(packet.Option))
+                        {
+                            // Client initiated
+                            SetOption(packet.Option, Telnet.TelnetOptionState.Waiting);
+                            InvokeOnTelnetWont(packet.Option);
+                        }
+                        else
+                        {
+                            // Server initiated.
+                            SetOption(packet.Option, Telnet.TelnetOptionState.Disabled);
+                        }
                         break;
                     case Telnet.Command.DO:
-                        InvokeOnTelnetDo(packet.Option);
+                        if (!IsWaitingOn(packet.Option))
+                        {
+                            // Client initiated
+                            SetOption(packet.Option, Telnet.TelnetOptionState.Waiting);
+                            InvokeOnTelnetDo(packet.Option);
+                        }
+                        else
+                        {
+                            // Server initiated.
+                            SetOption(packet.Option, Telnet.TelnetOptionState.Enabled);
+                        }
                         break;
                     case Telnet.Command.DONT:
-                        InvokeOnTelnetDont(packet.Option);
+                        if (!IsWaitingOn(packet.Option))
+                        {
+                            // Client initiated
+                            SetOption(packet.Option, Telnet.TelnetOptionState.Waiting);
+                            InvokeOnTelnetDont(packet.Option);
+                        }
+                        else
+                        {
+                            // Server initiated.
+                            SetOption(packet.Option, Telnet.TelnetOptionState.Disabled);
+                        }
                         break;
                     default:
                         InvokeOnTelnetUnhandled(packet);
@@ -77,11 +118,10 @@ namespace XeonNet.Sockets
                 {
                     try
                     {
-                        Client.Client.Send(new byte[1], 0, 0);
+                        Client.Client.Send(new byte[1], 0);
                         int bytesRead = 0;
                         while (Stream.DataAvailable)
                         {
-                            Console.WriteLine("Stream data");
                             buffer = new byte[1024];
                             int localBytes = await Stream.ReadAsync(buffer, 0, buffer.Length);
                             bytesRead += localBytes;
@@ -94,7 +134,6 @@ namespace XeonNet.Sockets
                             ClientBuffer.Add(buffer);
                             if (BufUtil.CountDelim(ClientBuffer.InternalBuffer, Telnet.IAC) > 0)
                             {
-                                Console.WriteLine("Telnet Parsing");
                                 List<Telnet.TelnetPacket> packets = Telnet.Parse(ClientBuffer.InternalBuffer, out byte[] remaining);
                                 ClientBuffer = new BufferBuilder();
                                 packets.ForEach(packet =>
@@ -103,7 +142,6 @@ namespace XeonNet.Sockets
                                 });
                                 if (remaining.Length > 0)
                                 {
-                                    Console.WriteLine("Remaining!");
                                     ClientBuffer.Add(remaining);
                                 }
                             }
@@ -129,74 +167,129 @@ namespace XeonNet.Sockets
         public bool HasOption(byte option)
         {
             using var opts = Options.Lock();
-            return opts.Value.Contains(option);
-        }
-        public void ToggleOption(byte option)
-        {
-            using var opts = Options.Lock();
-            if (opts.Value.Contains(option))
+            if (opts.Value.ContainsKey(option))
             {
-                opts.Value.Remove(option);
+                return opts.Value.TryGetValue(option, out Telnet.TelnetOptionState value) && value == Telnet.TelnetOptionState.Enabled;
             } else
             {
-                opts.Value.Add(option);
+                return false;
             }
         }
-        public bool SetOption(byte option)
+        public Telnet.TelnetOptionState GetState(byte option)
         {
             using var opts = Options.Lock();
-            if (opts.Value.Contains(option))
-                return false;
-            opts.Value.Add(option);
-            return true;
+            if (opts.Value.TryGetValue(option, out Telnet.TelnetOptionState state))
+            {
+                return state;
+            } else
+            {
+                opts.Value.Add(option, Telnet.TelnetOptionState.Disabled);
+                return Telnet.TelnetOptionState.Disabled;
+            }
+        }
+        public Telnet.TelnetOptionState GetState(byte option, MutLock<Dictionary<byte, Telnet.TelnetOptionState>> opts)
+        {
+            if (opts.Value.TryGetValue(option, out Telnet.TelnetOptionState state))
+            {
+                return state;
+            }
+            else
+            {
+                opts.Value[option] = Telnet.TelnetOptionState.Disabled;
+                return Telnet.TelnetOptionState.Disabled;
+            }
+        }
+        public void SetOption(byte option, Telnet.TelnetOptionState state)
+        {
+            using var opts = Options.Lock();
+            Telnet.TelnetOptionState currentState = GetState(option, opts);
+            opts.Value[option] = state;
         }
         public bool RemoveOption(byte option)
         {
             using var opts = Options.Lock();
-            if (!opts.Value.Contains(option))
+            if (!opts.Value.ContainsKey(option))
                 return false;
             opts.Value.Remove(option);
             return true;
         }
+        public bool IsWaitingOn(byte option)
+        {
+            return GetState(option) == Telnet.TelnetOptionState.Waiting;
+        }
         public async Task<bool> Will(byte option)
         {
-            if (SetOption(option))
+            Telnet.TelnetOptionState state = GetState(option);
+            switch (state)
             {
-                await SendTelnet(Telnet.Command.WILL, option);
-                return true;
+                case Telnet.TelnetOptionState.Disabled:
+                    // Initiating
+                    SetOption(option, Telnet.TelnetOptionState.Waiting);
+                    await SendTelnet(Telnet.Command.WILL, option);
+                    return true;
+                case Telnet.TelnetOptionState.Waiting:
+                    // Responding
+                    SetOption(option, Telnet.TelnetOptionState.Enabled);
+                    await SendTelnet(Telnet.Command.WILL, option);
+                    return true;
             }
-            else
-                return false;
+            return false;
         }
         public async Task<bool> Wont(byte option)
         {
-            if (RemoveOption(option))
+            Telnet.TelnetOptionState state = GetState(option);
+            switch (state)
             {
-                await SendTelnet(Telnet.Command.WONT, option);
-                return true;
+                case Telnet.TelnetOptionState.Enabled:
+                case Telnet.TelnetOptionState.Disabled:
+                    // Initiating
+                    SetOption(option, Telnet.TelnetOptionState.Waiting);
+                    await SendTelnet(Telnet.Command.WONT, option);
+                    return true;
+                case Telnet.TelnetOptionState.Waiting:
+                    // Responding
+                    SetOption(option, Telnet.TelnetOptionState.Disabled);
+                    await SendTelnet(Telnet.Command.WONT, option);
+                    return true;
             }
-            else
-                return false;
+            return false;
         }
         public async Task<bool> Do(byte option)
         {
-            if (SetOption(option))
+            Telnet.TelnetOptionState state = GetState(option);
+            switch (state)
             {
-                await SendTelnet(Telnet.Command.DO, option);
-                return true;
+                case Telnet.TelnetOptionState.Disabled:
+                    // Initiating
+                    SetOption(option, Telnet.TelnetOptionState.Waiting);
+                    await SendTelnet(Telnet.Command.DO, option);
+                    return true;
+                case Telnet.TelnetOptionState.Waiting:
+                    // Responding
+                    SetOption(option, Telnet.TelnetOptionState.Enabled);
+                    await SendTelnet(Telnet.Command.DO, option);
+                    return true;
             }
-            else
-                return false;
+            return false;
         }
         public async Task<bool> Dont(byte option)
         {
-            if (RemoveOption(option))
+            Telnet.TelnetOptionState state = GetState(option);
+            switch (state)
             {
-                await SendTelnet(Telnet.Command.DONT, option);
-                return true;
+                case Telnet.TelnetOptionState.Enabled:
+                case Telnet.TelnetOptionState.Disabled:
+                    // Initiating
+                    SetOption(option, Telnet.TelnetOptionState.Waiting);
+                    await SendTelnet(Telnet.Command.DONT, option);
+                    return true;
+                case Telnet.TelnetOptionState.Waiting:
+                    // Responding
+                    SetOption(option, Telnet.TelnetOptionState.Disabled);
+                    await SendTelnet(Telnet.Command.DONT, option);
+                    return true;
             }
-            else
-                return false;
+            return false;
         }
         public async Task SendTelnet(byte command, byte option)
         {
@@ -204,7 +297,8 @@ namespace XeonNet.Sockets
             {
                 byte[] t = Telnet.CreateTelnetData(command, option);
                 await Stream.WriteAsync(t, 0, t.Length);
-            } catch (Exception)
+            }
+            catch (Exception)
             {
                 //
             }
@@ -215,17 +309,20 @@ namespace XeonNet.Sockets
             {
                 byte[] t = Telnet.CreateGMCPData(path, payload);
                 await Stream.WriteAsync(t, 0, t.Length);
-            } catch (Exception)
+            }
+            catch (Exception)
             {
                 //
             }
         }
         public async Task WriteLine(string data)
         {
-            try { 
-                byte[] buffer = Encoding.UTF8.GetBytes(data+"\n\r");
+            try
+            {
+                byte[] buffer = Encoding.UTF8.GetBytes(data + "\n\r");
                 await Stream.WriteAsync(buffer, 0, buffer.Length);
-            } catch (Exception)
+            }
+            catch (Exception)
             {
                 //
             }
@@ -236,7 +333,8 @@ namespace XeonNet.Sockets
             {
                 byte[] buffer = Encoding.UTF8.GetBytes(data);
                 await Stream.WriteAsync(buffer, 0, buffer.Length);
-            } catch (Exception)
+            }
+            catch (Exception)
             {
                 //
             }
@@ -250,25 +348,29 @@ namespace XeonNet.Sockets
             if (OnTelnetUnhandled != null)
                 OnTelnetUnhandled.Invoke(packet);
         }
-        public void InvokeOnTelnetWill(byte option)
+        public bool InvokeOnTelnetWill(byte option)
         {
             if (OnTelnetWill != null)
-                OnTelnetWill.Invoke(option);
+                return OnTelnetWill.Invoke(option);
+            return true;
         }
-        public void InvokeOnTelnetWont(byte option)
+        public bool InvokeOnTelnetWont(byte option)
         {
             if (OnTelnetWont != null)
-                OnTelnetWont.Invoke(option);
+                return OnTelnetWont.Invoke(option);
+            return true;
         }
-        public void InvokeOnTelnetDo(byte option)
+        public bool InvokeOnTelnetDo(byte option)
         {
             if (OnTelnetDo != null)
-                OnTelnetDo.Invoke(option);
+                return OnTelnetDo.Invoke(option);
+            return true;
         }
-        public void InvokeOnTelnetDont(byte option)
+        public bool InvokeOnTelnetDont(byte option)
         {
             if (OnTelnetDont != null)
-                OnTelnetDont.Invoke(option);
+                return OnTelnetDont.Invoke(option);
+            return true;
         }
         public void InvokeOnTelnetSB(Telnet.TelnetPacket packet)
         {
@@ -338,7 +440,10 @@ namespace XeonNet.Sockets
                     if (Listener.Pending())
                     {
                         TcpClient tclient = await Listener.AcceptTcpClientAsync();
+                        tclient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                        tclient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, true);
                         XeonClient xclient = new XeonClient(tclient);
+                        Log.WriteLine($"Client <{xclient.GUID}> connected: {xclient.RemoteEndPoint}");
                         xclient.OnMessage += (data) =>
                         {
                             Log.WriteLine($"Client <{xclient.GUID}> data received: {data}");
@@ -357,9 +462,9 @@ namespace XeonNet.Sockets
                         {
                             list.Value.Add(xclient);
                         }
-                        Log.WriteLine($"Client <{xclient.GUID}> connected: {xclient.RemoteEndPoint}");
                         await xclient.WriteLine("Welcome to the Xeon Project.");
                         await xclient.Write("lua> ");
+                        await xclient.Will(Telnet.Option.LineMode);
                         await xclient.Will(Telnet.Option.GMCP);
                         InvokeClientConnect(xclient);
                     }

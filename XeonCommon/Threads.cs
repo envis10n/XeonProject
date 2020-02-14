@@ -6,7 +6,7 @@ namespace XeonCommon.Threads
     public class MutLock<TValue> : IDisposable
     {
         private Mutex Mut;
-        public readonly TValue Value;
+        public TValue Value;
         public MutLock(TValue val, Mutex mut)
         {
             Value = val;
@@ -20,7 +20,7 @@ namespace XeonCommon.Threads
     public class WrapMutex<TValue> : IDisposable
     {
         private Mutex Mut = new Mutex();
-        private readonly TValue Value;
+        private TValue Value;
         public WrapMutex(TValue val)
         {
             Value = val;

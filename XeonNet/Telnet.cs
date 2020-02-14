@@ -38,6 +38,12 @@ namespace XeonNet
             public const byte GMCP = 201;
             public const byte LineMode = 34;
         }
+        public enum TelnetOptionState
+        {
+            Disabled,
+            Waiting,
+            Enabled
+        }
         public struct TelnetPacket
         {
             public byte Command;
@@ -97,7 +103,7 @@ namespace XeonNet
             final[1] = Command.SB;
             final[2] = Option.GMCP;
             Buffer.BlockCopy(pD, 0, final, 3, pD.Length);
-            Buffer.BlockCopy(new byte[] { IAC, (byte)Command.SE }, 0, final, pD.Length, 2);
+            Buffer.BlockCopy(new byte[] { IAC, Command.SE }, 0, final, pD.Length, 2);
             return final;
         }
     }

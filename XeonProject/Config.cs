@@ -2,26 +2,32 @@ using Newtonsoft.Json;
 using System.IO;
 using System.Text;
 using XeonCommon;
+using System;
 
 namespace XeonProject
 {
-    public struct NetConfig
+    struct NetConfig
     {
-        public string Address;
-        public int Port;
+        internal string address;
+        public string Address { get => address; set => address = value; }
+        internal int port;
+        public int Port { get => port; set => port = value; }
     }
-    public struct DataStoreConfig
+    struct DataStoreConfig
     {
-        public string Path;
+        internal string path;
+        public string Path { get => path; set => path = value; }
     }
-    public struct ProgramConfig
+    struct ProgramConfig
     {
-        public NetConfig Network;
-        public DataStoreConfig DataStore;
+        internal NetConfig network;
+        internal DataStoreConfig dataStore;
+        public NetConfig Network { get => network; set => network = value; }
+        public DataStoreConfig DataStore { get => dataStore; set => dataStore = value; }
     }
-    public static class Config
+    static class Config
     {
-        private static Logger Log = new Logger("[Config]");
+        public static readonly Logger Log = new Logger("[Config]");
         public static readonly ProgramConfig Defaults = new ProgramConfig
         {
             Network = new NetConfig { Address = "127.0.0.1", Port = 1337 },
@@ -39,7 +45,7 @@ namespace XeonProject
                     return JsonConvert.DeserializeObject<ProgramConfig>(Encoding.UTF8.GetString(buffer));
                 }
             }
-            catch
+            catch (Exception)
             {
                 Log.WriteLine($"Error loading configuration from {configPath}. Loading defaults...");
                 using (FileStream fs = File.Create(configPath))
