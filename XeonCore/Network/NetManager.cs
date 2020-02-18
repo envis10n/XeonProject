@@ -2,16 +2,10 @@
 
 namespace XeonCore.Network
 {
-    public interface INetManaged<T> where T : INetClient
+    public class NetManager : INetManaged<INetClient>
     {
-        public delegate void NetEventIncoming(NetEvent<T> e);
         public event NetEventIncoming NetEventIn;
-        public void EmitNetEvent(NetEvent<T> e);
-    }
-    public class NetManager<T> : INetManaged<T> where T : INetClient
-    {
-        public event INetManaged<T>.NetEventIncoming NetEventIn;
-        public NetQueue<T> Queue = new NetQueue<T>();
+        public NetQueue Queue = new NetQueue();
         public NetManager()
         {
         }
@@ -19,7 +13,7 @@ namespace XeonCore.Network
         {
             Queue.Dispose();
         }
-        public void EmitNetEvent(NetEvent<T> e)
+        public void EmitNetEvent(NetEvent<INetClient> e)
         {
             NetEventIn.Invoke(e);
         }

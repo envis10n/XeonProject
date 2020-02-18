@@ -1,6 +1,6 @@
 using System.Threading;
 using XeonCore.Network;
-using XeonNet.Sockets;
+using XeonCommon.Network;
 using System;
 using XeonCore.Sandbox;
 
@@ -10,7 +10,7 @@ namespace XeonProject
     {
         public static Thread GameThread = new Thread(() =>
             {
-                Network.Manager.NetEventIn += (NetEvent<XeonClient> e) =>
+                Network.Manager.NetEventIn += (NetEvent<INetClient> e) =>
                 {
                     if (e.IsDisconnect)
                         return;

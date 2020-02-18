@@ -274,6 +274,18 @@ namespace XeonNet.Sockets
             }
             return false;
         }
+        public async Task<string> Prompt(string prompt)
+        {
+            Task<string> task = new Task<string>(() =>
+            {
+                return "";
+            });
+            return await task;
+        }
+        public void Close()
+        {
+            Client.Close();
+        }
         public async Task<bool> Dont(byte option)
         {
             Telnet.TelnetOptionState state = GetState(option);

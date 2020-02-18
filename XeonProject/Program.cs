@@ -1,8 +1,7 @@
 ﻿using System.Reflection;
 using System.IO;
-using System;
-using XeonNet;
 using XeonCommon;
+using XeonCommon.Config;
 
 namespace XeonProject
 {

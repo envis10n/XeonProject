@@ -6,22 +6,14 @@ using XeonCommon.Network;
 
 namespace XeonCore.Network
 {
-    public struct NetEvent<T> where T : INetClient
-    {
-        public T Client;
-        public Guid Guid;
-        public string Payload;
-        public bool IsDisconnect;
-    }
-    public class NetQueue<T> : IDisposable where T : INetClient
+    public class NetQueue : INetQueue<INetClient>
     {
         private Mutex Mut = new Mutex();
-        public delegate void NetEventEnqueue(NetEvent<T> e);
         public event NetEventEnqueue OnNetEvent;
-        protected ConcurrentQueue<NetEvent<T>> Queue = new ConcurrentQueue<NetEvent<T>>();
+        protected ConcurrentQueue<NetEvent<INetClient>> Queue = new ConcurrentQueue<NetEvent<INetClient>>();
         public NetQueue()
         {
-            OnNetEvent += (NetEvent<T> e) =>
+            OnNetEvent += (NetEvent<INetClient> e) =>
             {
                 Mut.WaitOne();
                 Enqueue(e);
@@ -32,21 +24,21 @@ namespace XeonCore.Network
         {
             Queue.Clear();
         }
-        public void Enqueue(NetEvent<T> e)
+        public void Enqueue(NetEvent<INetClient> e)
         {
             Mut.WaitOne();
             Queue.Enqueue(e);
             Mut.ReleaseMutex();
         }
-        public void CallNetEvent(NetEvent<T> e)
+        public void CallNetEvent(NetEvent<INetClient> e)
         {
             OnNetEvent.Invoke(e);
         }
-        public bool Poll(out NetEvent<T>[] result)
+        public bool Poll(out NetEvent<INetClient>[] result)
         {
-            List<NetEvent<T>> re = new List<NetEvent<T>>();
+            List<NetEvent<INetClient>> re = new List<NetEvent<INetClient>>();
             Mut.WaitOne();
-            while (Queue.TryDequeue(out NetEvent<T> res))
+            while (Queue.TryDequeue(out NetEvent<INetClient> res))
             {
                 re.Add(res);
             }

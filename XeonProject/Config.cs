@@ -2,31 +2,11 @@ using Newtonsoft.Json;
 using System.IO;
 using System.Text;
 using XeonCommon;
+using XeonCommon.Config;
 using System;
 
 namespace XeonProject
 {
-    struct NetConfig
-    {
-        internal string address;
-        public string Address { get => address; set => address = value; }
-        internal int port;
-        public int Port { get => port; set => port = value; }
-    }
-    struct DataStoreConfig
-    {
-        internal string path;
-        public string Path { get => path; set => path = value; }
-    }
-    struct ProgramConfig
-    {
-        internal string pluginPath;
-        internal NetConfig network;
-        internal DataStoreConfig dataStore;
-        public string PluginPath { get => pluginPath; set => pluginPath = value; }
-        public NetConfig Network { get => network; set => network = value; }
-        public DataStoreConfig DataStore { get => dataStore; set => dataStore = value; }
-    }
     static class Config
     {
         public static readonly Logger Log = new Logger("[Config]");

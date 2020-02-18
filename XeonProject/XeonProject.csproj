@@ -29,7 +29,6 @@
   <ItemGroup>
     <ProjectReference Include="..\XeonCommon\XeonCommon.csproj" />
     <ProjectReference Include="..\XeonCore\XeonCore.csproj" />
-    <ProjectReference Include="..\XeonNet\XeonNet.csproj" />
     <ProjectReference Include="..\XeonStorage\XeonStorage.csproj" />
   </ItemGroup>
 
