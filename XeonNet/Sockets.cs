@@ -170,7 +170,8 @@ namespace XeonNet.Sockets
             if (opts.Value.ContainsKey(option))
             {
                 return opts.Value.TryGetValue(option, out Telnet.TelnetOptionState value) && value == Telnet.TelnetOptionState.Enabled;
-            } else
+            }
+            else
             {
                 return false;
             }
@@ -181,7 +182,8 @@ namespace XeonNet.Sockets
             if (opts.Value.TryGetValue(option, out Telnet.TelnetOptionState state))
             {
                 return state;
-            } else
+            }
+            else
             {
                 opts.Value.Add(option, Telnet.TelnetOptionState.Disabled);
                 return Telnet.TelnetOptionState.Disabled;
@@ -441,7 +443,7 @@ namespace XeonNet.Sockets
                     {
                         TcpClient tclient = await Listener.AcceptTcpClientAsync();
                         tclient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-                        tclient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, true);
+                        tclient.Client.NoDelay = true;
                         XeonClient xclient = new XeonClient(tclient);
                         Log.WriteLine($"Client <{xclient.GUID}> connected: {xclient.RemoteEndPoint}");
                         xclient.OnMessage += (data) =>

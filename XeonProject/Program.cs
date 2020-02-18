@@ -2,11 +2,13 @@
 using System.IO;
 using System;
 using XeonNet;
+using XeonCommon;
 
 namespace XeonProject
 {
     static class Program
     {
+        public static ConcurrentDictionary<string, object> Globals = new ConcurrentDictionary<string, object>();
         public static string AppDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.ToString();
         public static ProgramConfig Config;
         static void Main(string[] args)
@@ -29,15 +31,17 @@ namespace XeonProject
                 Config = XeonProject.Config.LoadConfig(Path.GetFullPath("XeonConfig.json", AppDir));
             }
 
-            bool added = Sandbox.Lua.RegisterFunction("testPrint", new Action<string>((arg) =>
-            {
-                Console.WriteLine($"Lua Sandbox Print: {arg}");
-            }));
-
             DataStorage.Setup();
             Network.Start();
             Game.GameThread.Start();
             Events.EventLoop.Start();
+            Globals["EventLoop"] = Events.EventLoop;
+            Globals["Database"] = DataStorage.Database;
+            Globals["AppDir"] = AppDir;
+            Globals["Config"] = Config;
+            Globals["Args"] = args;
+            Globals["NetManager"] = Network.Manager;
+            Plugins.LoadPlugins();
             Events.EventLoop.Join();
         }
     }

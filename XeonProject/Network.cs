@@ -18,7 +18,7 @@ namespace XeonProject
                 server.OnClientConnect += (XeonClient client) =>
                 {
                     Guid guid = Guid.Parse(client.GUID.ToString());
-                    Collection? actors = DataStorage.Database.GetCollection("actors");
+                    Collection actors = DataStorage.Database.GetCollection("actors");
                     Actor player;
                     if (actors != null)
                     {

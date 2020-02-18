@@ -20,8 +20,10 @@ namespace XeonProject
     }
     struct ProgramConfig
     {
+        internal string pluginPath;
         internal NetConfig network;
         internal DataStoreConfig dataStore;
+        public string PluginPath { get => pluginPath; set => pluginPath = value; }
         public NetConfig Network { get => network; set => network = value; }
         public DataStoreConfig DataStore { get => dataStore; set => dataStore = value; }
     }
@@ -30,6 +32,7 @@ namespace XeonProject
         public static readonly Logger Log = new Logger("[Config]");
         public static readonly ProgramConfig Defaults = new ProgramConfig
         {
+            PluginPath = "plugins",
             Network = new NetConfig { Address = "127.0.0.1", Port = 1337 },
             DataStore = new DataStoreConfig { Path = "database" }
         };
