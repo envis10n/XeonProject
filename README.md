@@ -11,6 +11,7 @@ Basic idea:
 This project requires .NET Core SDK 3.1
 
 NOTE: Networking in XeonProject is handled via plugins hooking into the NetManager and enqueuing new NetEvents.
+For a default solution, XeonNet provides a TCP transport layer with Telnet and GMCP parsing and processing.
 
 1. Clone the repo.
 2. Build the solution.
