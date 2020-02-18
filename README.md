@@ -10,6 +10,8 @@ Basic idea:
 ## Setup
 This project requires .NET Core SDK 3.1
 
+NOTE: Networking in XeonProject is handled via plugins hooking into the NetManager and enqueuing new NetEvents.
+
 1. Clone the repo.
 2. Build the solution.
 3. (Optional) Enter the XeonNet folder and `dotnet build`
